@@ -26,6 +26,12 @@ print(text_feats.shape)
 print(text_feats)
 
 # %%
+merged_text = " ".join(texts)
+merged_text_feats = embed_text(merged_text)
+print(merged_text_feats.shape)
+print(merged_text_feats)
+
+# %%
 not_relevant_text = "a photo of a cat"
 not_relevant_text_feats = embed_text(not_relevant_text)
 print(not_relevant_text_feats.shape)
@@ -41,7 +47,7 @@ print(image_feats)
 import numpy as np
 
 print(np.dot(text_feats[0], image_feats[0]))
-
-# %%
 print(np.dot(not_relevant_text_feats[0], image_feats[0]))
+print(np.dot(merged_text_feats[0], image_feats[0]))
+
 # %%

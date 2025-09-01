@@ -2,10 +2,11 @@ import io
 import os
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from minio import Minio
 from PIL import Image
 from pymilvus import (
@@ -80,37 +81,47 @@ class MultiModalStore:
         # ---- Milvus ----
         connections.connect(alias="default", host=milvus_cfg.host, port=milvus_cfg.port)
         self.coll = self._get_or_create_collection()
+        # 단일 벡터 필드
+        self.vector_field = "vector"
+
         self._ensure_index()  # 인덱스 생성
         self.coll.load()
 
-    # -------- Embedding (transformers/CLIP) --------
-    @torch.no_grad()
-    def embed_text(self, texts) -> np.ndarray:
-        """
-        texts: str 또는 List[str]
-        return: (N, 768) float32 normalized
-        """
+    @torch.inference_mode()
+    def embed_text(self, texts, batch_size=64) -> np.ndarray:
         if isinstance(texts, str):
             texts = [texts]
-        inputs = self.tokenizer(
-            texts, return_tensors="pt", padding=True, truncation=True
-        ).to(self.device)
-        feats = self.model.get_text_features(**inputs)
-        feats = torch.nn.functional.normalize(feats, dim=-1)
-        return feats.detach().cpu().numpy().astype(np.float32)
+        outs = []
+        for i in range(0, len(texts), batch_size):
+            sub = texts[i : i + batch_size]
+            inputs = self.tokenizer(
+                sub, return_tensors="pt", padding=True, truncation=True
+            )
+            inputs = {k: v.pin_memory() for k, v in inputs.items()}
+            inputs = {
+                k: v.to(self.device, non_blocking=True) for k, v in inputs.items()
+            }
+            feats = self.model.get_text_features(**inputs)
+            outs.append(F.normalize(feats, dim=-1).to("cpu", non_blocking=True))
+        torch.cuda.synchronize()  # host로의 비동기 복사 완료 대기
+        return torch.cat(outs, dim=0).numpy().astype(np.float32)
 
-    @torch.no_grad()
-    def embed_images(self, pil_images) -> np.ndarray:
-        """
-        pil_images: PIL.Image.Image 또는 List[PIL.Image.Image]
-        return: (N, 768) float32 normalized
-        """
+    @torch.inference_mode()
+    def embed_images(self, pil_images, batch_size=32) -> np.ndarray:
         if isinstance(pil_images, Image.Image):
             pil_images = [pil_images]
-        inputs = self.processor(images=pil_images, return_tensors="pt").to(self.device)
-        feats = self.model.get_image_features(**inputs)
-        feats = torch.nn.functional.normalize(feats, dim=-1)
-        return feats.detach().cpu().numpy().astype(np.float32)
+        outs = []
+        for i in range(0, len(pil_images), batch_size):
+            sub = pil_images[i : i + batch_size]
+            inputs = self.processor(images=sub, return_tensors="pt")
+            inputs = {k: v.pin_memory() for k, v in inputs.items()}
+            inputs = {
+                k: v.to(self.device, non_blocking=True) for k, v in inputs.items()
+            }
+            feats = self.model.get_image_features(**inputs)
+            outs.append(F.normalize(feats, dim=-1).to("cpu", non_blocking=True))
+        torch.cuda.synchronize()
+        return torch.cat(outs, dim=0).numpy().astype(np.float32)
 
     # -------- MinIO (PIL만) --------
     def upload_image(
@@ -149,7 +160,16 @@ class MultiModalStore:
     def _get_or_create_collection(self) -> Collection:
         name = self.milvus_cfg.collection_name
         if utility.has_collection(name):  # 컬렉션 존재 여부 확인
-            return Collection(name)
+            coll = Collection(name)
+            # 필수 필드 검증 (단일 벡터 스키마)
+            field_names = {f.name for f in coll.schema.fields}
+            required = {"vector", "text", "image_path"}
+            missing = required - field_names
+            if missing:
+                raise RuntimeError(
+                    f"Existing collection '{name}' is missing required fields: {sorted(missing)}"
+                )
+            return coll
 
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
@@ -168,24 +188,30 @@ class MultiModalStore:
             ),
         ]
         schema = CollectionSchema(
-            fields=fields, description="CLIP(768d) vector + text + image_path"
+            fields=fields,
+            description="CLIP(768d) vector + text + image_path",
         )
         return Collection(name=name, schema=schema)
 
     def _ensure_index(self):
+        # 필드별 인덱스 존재 여부 확인 후 생성
         try:
-            if self.coll.indexes:
-                return
+            existing = {idx.field_name for idx in (self.coll.indexes or [])}
         except Exception:
-            pass
-        self.coll.create_index(
-            field_name="vector",
-            index_params={
-                "index_type": self.milvus_cfg.index_type,
-                "metric_type": self.milvus_cfg.metric_type,
-                "params": self.milvus_cfg.index_params,
-            },
-        )
+            existing = set()
+
+        def ensure(field_name: str):
+            if field_name not in existing:
+                self.coll.create_index(
+                    field_name=field_name,
+                    index_params={
+                        "index_type": self.milvus_cfg.index_type,
+                        "metric_type": self.milvus_cfg.metric_type,
+                        "params": self.milvus_cfg.index_params,
+                    },
+                )
+
+        ensure(self.vector_field)
 
     def recreate_index(
         self,
@@ -194,12 +220,13 @@ class MultiModalStore:
         metric_type: Optional[str] = None,
     ):
         self.coll.release()
+        # 벡터 인덱스 재생성
         try:
-            self.coll.drop_index("vector")
+            self.coll.drop_index(self.vector_field)
         except Exception:
             pass
         self.coll.create_index(
-            field_name="vector",
+            field_name=self.vector_field,
             index_params={
                 "index_type": index_type,
                 "metric_type": metric_type or self.milvus_cfg.metric_type,
@@ -209,30 +236,76 @@ class MultiModalStore:
         self.coll.load()
 
     # -------- High-level API (PIL만) --------
-    def add_image_with_caption(
-        self, image: Image.Image, caption: str, object_name: Optional[str] = None
-    ) -> int:
+    def add_images_with_captions(
+        self,
+        images: Sequence[Image.Image],
+        captions: Sequence[str],
+        object_names: Optional[Sequence[Optional[str]]] = None,
+        batch_size: int = 32,
+        do_flush: bool = True,
+    ) -> List[int]:
         """
-        1) PIL → MinIO 업로드(JPEG)
-        2) PIL → 임베딩
-        3) Milvus insert(vector, text, image_path)
+        1) 각 이미지 MinIO 업로드(JPEG) -> s3_uri 리스트
+        2) 이미지 배치 임베딩 -> (N, D)
+        3) Milvus insert(vector, text, image_path)  [컬럼 기반: 2D, 1D, 1D]
+        4) 선택적으로 flush (대량 삽입 뒤 1회 권장)
+        return: primary key 리스트
         """
-        s3_uri = self.upload_image(image, object_name=object_name)
-        vec = self.embed_images(image)[0]  # (768,)
+        if len(images) != len(captions):
+            raise ValueError(
+                f"images({len(images)}) and captions({len(captions)}) must have the same length"
+            )
+
+        N = len(images)
+        if object_names is not None and len(object_names) != N:
+            raise ValueError("object_names length must match images length if provided")
+
+        # 1) 업로드 (필요 시 ThreadPool로 병렬화 가능)
+        s3_uris: List[str] = []
+        for idx, img in enumerate(images):
+            oname = None if object_names is None else object_names[idx]
+            s3_uris.append(self.upload_image(img, object_name=oname))
+
+        # 2) 배치 임베딩 (이미지)
+        img_vecs = self.embed_images(images, batch_size=batch_size)  # (N, D)
+
+        # 3) Milvus insert (컬럼 기반)
+        vectors_col = [vec.tolist() for vec in img_vecs]
+        texts_col = list(captions)
+        paths_col = s3_uris
 
         mr = self.coll.insert(
-            data=[[vec.tolist()], [caption], [s3_uri]],
-            fields=["vector", "text", "image_path"],
+            data=[vectors_col, texts_col, paths_col],
+            fields=[self.vector_field, "text", "image_path"],
         )
-        self.coll.flush()
-        return int(mr.primary_keys[0]) if mr.primary_keys else -1
 
-    def search_by_text(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        if do_flush:
+            # 너무 자주 호출하지 말고, 배치 or 전체 ingest 후 1회 호출 권장
+            self.coll.flush()
+
+        # 4) PK 반환 (auto_id인 경우 MutatationResult.primary_keys에서 수집)
+        pks = []
+        if getattr(mr, "primary_keys", None) is not None:
+            for pk in mr.primary_keys:
+                try:
+                    pks.append(int(pk))
+                except (TypeError, ValueError):
+                    # 문자열 PK 등인 경우 그대로 유지
+                    pks.append(pk)
+        return pks
+
+    def search_by_text(
+        self, query: str, top_k: int = 5, search_target: str = "images"
+    ) -> List[Dict[str, Any]]:
+        """
+        텍스트 임베딩으로 단일 벡터 필드("vector")에서 검색합니다.
+        """
         qvec = self.embed_text(query)[0].tolist()
-        # HNSW: ef, IVF: nprobe 등 파라미터는 필요 시 여기서 분기해서 넣어도 됨
+        anns_field = self.vector_field
+
         res = self.coll.search(
             data=[qvec],
-            anns_field="vector",
+            anns_field=anns_field,
             param={"ef": 128} if self.milvus_cfg.index_type.upper() == "HNSW" else {},
             limit=top_k,
             output_fields=["text", "image_path"],

@@ -238,11 +238,15 @@ class MultiModalStore:
     # -------- High-level API (PIL만) --------
     def add_images_with_captions(
         self,
-        images: Sequence[Image.Image],
-        captions: Sequence[str],
-        object_names: Optional[Sequence[Optional[str]]] = None,
-        batch_size: int = 32,
-        do_flush: bool = True,
+        images: Sequence[
+            Image.Image
+        ],  # PIL 이미지 객체들의 시퀀스 - MinIO에 업로드할 이미지들
+        captions: Sequence[str],  # 각 이미지에 대응하는 캡션 문자열들의 시퀀스
+        object_names: Optional[
+            Sequence[Optional[str]]
+        ] = None,  # MinIO에 저장될 객체 이름들 (None이면 자동 생성)
+        batch_size: int = 32,  # 이미지 임베딩 시 한 번에 처리할 배치 크기
+        do_flush: bool = True,  # Milvus 삽입 후 즉시 플러시 여부 (대량 삽입 시 False 권장)
     ) -> List[int]:
         """
         1) 각 이미지 MinIO 업로드(JPEG) -> s3_uri 리스트

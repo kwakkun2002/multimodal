@@ -4,6 +4,7 @@ globs:
 alwaysApply: true
 ---
 
+uv run 을 통해 실행하세요
 
 # 한국어 코딩 어시스턴트 스타일
 

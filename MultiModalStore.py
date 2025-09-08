@@ -7,7 +7,10 @@ from typing import Any, Dict, List, Optional, Sequence
 import numpy as np
 import torch
 import torch.nn.functional as F
-from minio import Minio
+from minio import Minio  # MinIO 클라이언트 사용을 위한 임포트
+from minio.error import (
+    S3Error,  # presigned 및 객체 접근 시 오류 코드를 다루기 위한 예외 클래스 임포트
+)
 from PIL import Image
 from pymilvus import (
     Collection,
@@ -150,10 +153,30 @@ class MultiModalStore:
         return f"s3://{self.minio_cfg.bucket}/{object_name}"
 
     def presigned_url(self, s3_uri: str, expires_seconds: int = 3600) -> str:
-        # s3://bucket/key -> presigned http url
-        _, bucket, key = s3_uri.split("/", 2)
-        return self.minio.presigned_get_object(
-            bucket, key, expires=timedelta(seconds=expires_seconds)
+        # s3://bucket/key -> presigned http url  # s3 스킴의 내부 경로를 사전서명된 HTTP URL로 변환
+        if not s3_uri.startswith("s3://"):
+            raise ValueError(f"Invalid s3 uri: {s3_uri}")  # s3 접두어 누락 시 예외
+        path = s3_uri[len("s3://") :]  # 접두어를 제거하여 'bucket/key'만 남김
+        if "/" not in path:
+            raise ValueError(
+                f"Invalid s3 uri (missing key): {s3_uri}"
+            )  # 키 구분자 누락 시 예외
+        bucket, key = path.split("/", 1)  # 버킷과 키로 분리
+        # 사전서명 전 실제 존재 여부를 확인하여 잘못된 키로 링크가 생성되지 않도록 방지
+        try:
+            self.minio.stat_object(bucket, key)  # 원본 키로 존재 확인
+            final_key = key  # 존재하면 그대로 사용
+        except S3Error as e:
+            if e.code == "NoSuchKey" and not key.endswith(".jpg"):  # 확장자 누락 가능성
+                alt_key = key + ".jpg"  # 대체 키 후보
+                self.minio.stat_object(
+                    bucket, alt_key
+                )  # 대체 키 존재 확인(없으면 예외 전파)
+                final_key = alt_key  # 대체 키로 확정
+            else:
+                raise  # 다른 오류는 상위로 전파
+        return self.minio.presigned_get_object(  # 최종 키로 사전서명 URL 생성
+            bucket, final_key, expires=timedelta(seconds=expires_seconds)
         )
 
     # -------- Milvus --------

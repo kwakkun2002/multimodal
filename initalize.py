@@ -54,7 +54,7 @@ proc = CLIPProcessor.from_pretrained(model_id)
 # BGE-M3 불러오기
 from FlagEmbedding import BGEM3FlagModel
 model = BGEM3FlagModel('BAAI/bge-m3', use_fp16=True)
-emb = model.encode(["문장1", "문장2"], max_length=8192, batch_size=...)['dense_vecs']
+# emb = model.encode(["문장1", "문장2"], max_length=8192, batch_size=...)['dense_vecs']
 
 
 # %%

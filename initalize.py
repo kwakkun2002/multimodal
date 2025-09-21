@@ -28,7 +28,6 @@ print(dataset)
 ds["train"][0]
 
 # %%
-# %%
 import torch
 from transformers import CLIPModel, CLIPProcessor
 
@@ -36,3 +35,26 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 model_id = "openai/clip-vit-large-patch14"  # 768-d 공용 투영
 model = CLIPModel.from_pretrained(model_id).to(device).eval()
 proc = CLIPProcessor.from_pretrained(model_id)
+
+
+# %%
+
+# jinja-clip-v2 불러오기
+# from transformers import AutoModel, AutoProcessor
+# model = AutoModel.from_pretrained("jinhaai/jinja-clip-v2", trust_remote_code=True)
+# processor = AutoProcessor.from_pretrained("jinhaai/jinja-clip-v2")
+
+# 모델을 상업용으로 쓸 수 없어서 다운로드가 안됨
+# API를 사용하는 방식으로 가야할듯?
+
+
+
+# %%
+
+# BGE-M3 불러오기
+from FlagEmbedding import BGEM3FlagModel
+model = BGEM3FlagModel('BAAI/bge-m3', use_fp16=True)
+emb = model.encode(["문장1", "문장2"], max_length=8192, batch_size=...)['dense_vecs']
+
+
+# %%

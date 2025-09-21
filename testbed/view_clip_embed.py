@@ -1,4 +1,8 @@
 # %%
+# CLIP 임베딩 테스트
+
+
+# %%
 from datasets import load_dataset, load_from_disk
 # %%
 

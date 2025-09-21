@@ -9,5 +9,12 @@ wheels/
 # Virtual environments
 .venv
 
+# IDE
+.cursor
+.vscode
+
+
+# Data
 data/
 volumes/
+MRAMG-Bench

@@ -1,9 +1,9 @@
 from typing import Any, Dict, List
 
-from BGEM3Embedder import BGEM3Embedder
-from DocumentProcessor import DocumentProcessor
-from DocWitConfig import DocWitConfig
-from MilvusManager import MilvusManager
+from mramg_proj.BGEM3Embedder import BGEM3Embedder
+from mramg_proj.DocumentProcessor import DocumentProcessor
+from mramg_proj.DocWitConfig import DocWitConfig
+from mramg_proj.MilvusManager import MilvusManager
 
 
 class DocWitVectorStore:

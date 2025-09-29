@@ -6,7 +6,7 @@ from minio import Minio  # MinIO 클라이언트 사용을 위한 임포트
 from PIL import Image  # 이미지 처리를 위한 PIL 임포트
 from tqdm import tqdm  # 진행 상황 표시를 위한 tqdm 임포트
 
-from repository.RepositoryConfig import WitImagesStorageConfig
+from mramg_proj.WitImagesStorageConfig import WitImagesStorageConfig
 
 
 class JPGUploader:

@@ -1,5 +1,7 @@
-from repository.JPGUploader import JPGUploader
-from repository.RepositoryConfig import WitImagesStorageConfig
+from JPGUploader import JPGUploader
+from WitImagesStorageConfig import WitImagesStorageConfig
+
+
 
 
 def main():  # 메인 함수 - 스크립트 실행 시 호출

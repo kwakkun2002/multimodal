@@ -1,16 +1,16 @@
 from typing import List  # 타입 힌트를 위한 List 임포트
 
 from PIL import Image  # 로컬 이미지 로딩을 위한 PIL 임포트
-
-from MultiModalStore import (  # 기존 MinIO/Milvus/CLIP 스토어 래퍼 임포트
-    MilvusConfig,  # Milvus 설정 데이터클래스
-    MinIOConfig,  # MinIO 설정 데이터클래스
-    MultiModalStore,  # 업로드/임베딩/삽입/검색 기능 제공 클래스
-)
 from rag_langchain import (  # 방금 구현한 RAG 구성요소 임포트
     CLIPMilvusRetriever,  # 텍스트→이미지 검색을 수행하는 LangChain 검색기
     LlavaImageDescriber,  # LLaVA 기반 이미지 설명 생성기
     MultiModalRAG,  # 검색기+생성기 결합 파이프라인
+)
+
+from MultiModalStore import (  # 기존 MinIO/Milvus/CLIP 스토어 래퍼 임포트
+    MinIOConfig,  # MinIO 설정 데이터클래스
+    MultiModalStore,  # 업로드/임베딩/삽입/검색 기능 제공 클래스
+    VectorStoreConfig,  # Milvus 설정 데이터클래스
 )
 
 
@@ -36,7 +36,7 @@ def main():  # 데모 진입점 함수(메인)
 
     # 스토어(검색 인프라) 준비
     minio_cfg = MinIOConfig()  # MinIO 설정 생성
-    milvus_cfg = MilvusConfig()  # Milvus 설정 생성
+    milvus_cfg = VectorStoreConfig()  # Milvus 설정 생성
     store = MultiModalStore(minio_cfg, milvus_cfg)  # 스토어 인스턴스 생성
 
     if ingest:  # 삽입 플래그가 True이면 예시 데이터 삽입 수행

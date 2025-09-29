@@ -1,6 +1,5 @@
 import io
 import os
-from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -22,111 +21,88 @@ from pymilvus import (
 )
 from transformers import AutoImageProcessor, AutoTokenizer, CLIPModel
 
-# -------- 설정 클래스 --------
-
-
-@dataclass
-class MinIOConfig:
-    endpoint: str = "localhost:9000"  # docker-compose 내부면 "minio:9000"
-    access_key: str = "minioadmin"
-    secret_key: str = "minioadmin"
-    secure: bool = False
-    bucket: str = "images"
-
-
-@dataclass
-class MilvusConfig:
-    host: str = "localhost"
-    port: int = 19530
-    collection_name: str = "openclip_multimodal"
-    dim: int = 768
-    text_max_len: int = 2048
-    path_max_len: int = 1024
-    metric_type: str = "IP"
-    index_type: str = "HNSW"
-    index_params: Dict[str, Any] = None
-
-    def __post_init__(self):
-        if self.index_params is None:
-            self.index_params = {"M": 16, "efConstruction": 200}
+from repository.RepositoryConfig import VectorDatabaseConfig, WitImagesStorageConfig
 
 
 # -------- 실제 서비스 클래스 --------
 class MultiModalStore:
     def __init__(
         self,
-        minio_cfg: MinIOConfig,
-        milvus_cfg: MilvusConfig,
+        image_storage_config: WitImagesStorageConfig,
+        vector_database_config: VectorDatabaseConfig,
     ):
-        self.minio_cfg = minio_cfg
-        self.milvus_cfg = milvus_cfg
+        self.image_storage_config = image_storage_config
+        self.vector_database_config = vector_database_config
 
-        # ---- MinIO ----
-        self.minio = Minio(
-            minio_cfg.endpoint,
-            access_key=minio_cfg.access_key,
-            secret_key=minio_cfg.secret_key,
-            secure=minio_cfg.secure,
+        # MinIO
+        self.image_storage = Minio(
+            image_storage_config.endpoint,  # MinIO 서버 주소 (도커 컴포즈 내부면 "minio:9000")
+            access_key=image_storage_config.access_key,  # MinIO 액세스 키
+            secret_key=image_storage_config.secret_key,  # MinIO 시크릿 키
+            secure=image_storage_config.secure,  # HTTP 사용 시 False, HTTPS 사용 시 True
         )
-        if not self.minio.bucket_exists(minio_cfg.bucket):  # 버킷 생성
-            self.minio.make_bucket(minio_cfg.bucket)
 
-        # ---- CLIP (transformers) ----
+        # 버킷 존재 여부 확인 후 없으면 생성
+        if not self.image_storage.bucket_exists(image_storage_config.bucket_name):
+            self.image_storage.make_bucket(image_storage_config.bucket)
+
+        # CLIP (transformers)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model_id = "openai/clip-vit-large-patch14"  # 768-d common projection
+        # 768-d common projection
+        self.model_id = "openai/clip-vit-large-patch14"
 
+        # 모델 로드
         self.model = CLIPModel.from_pretrained(self.model_id).to(self.device).eval()
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_id)
         self.processor = AutoImageProcessor.from_pretrained(
             self.model_id, use_fast=True
         )
 
-        # ---- Milvus ----
-        connections.connect(alias="default", host=milvus_cfg.host, port=milvus_cfg.port)
-        self.coll = self._get_or_create_collection()
+        # Milvus
+        connections.connect(
+            alias="default",
+            host=vector_database_config.host,
+            port=vector_database_config.port,
+        )
+        self.collection = self._get_or_create_collection()
         # 단일 벡터 필드
         self.vector_field = "vector"
 
-        self._ensure_index()  # 인덱스 생성
-        self.coll.load()
+        # 인덱스 생성
+        self._ensure_index()
 
-    @torch.inference_mode()
-    def embed_text(self, texts, batch_size=64) -> np.ndarray:
-        if isinstance(texts, str):
-            texts = [texts]
-        outs = []
-        for i in range(0, len(texts), batch_size):
-            sub = texts[i : i + batch_size]
-            inputs = self.tokenizer(
-                sub, return_tensors="pt", padding=True, truncation=True
-            )
-            inputs = {k: v.pin_memory() for k, v in inputs.items()}
-            inputs = {
-                k: v.to(self.device, non_blocking=True) for k, v in inputs.items()
-            }
-            feats = self.model.get_text_features(**inputs)
-            outs.append(F.normalize(feats, dim=-1).to("cpu", non_blocking=True))
-        torch.cuda.synchronize()  # host로의 비동기 복사 완료 대기
-        return torch.cat(outs, dim=0).numpy().astype(np.float32)
+        # 컬렉션 로드
+        self.collection.load()
 
     @torch.inference_mode()
     def embed_images(self, pil_images, batch_size=32) -> np.ndarray:
+        """
+        PIL 이미지를 임베딩하여 벡터 배열로 반환
+        """
+
+        # 단일 이미지인 경우 리스트로 변환
         if isinstance(pil_images, Image.Image):
             pil_images = [pil_images]
         outs = []
+
+        # 배치 단위로 처리
         for i in range(0, len(pil_images), batch_size):
+            # 배치 데이터 준비
             sub = pil_images[i : i + batch_size]
             inputs = self.processor(images=sub, return_tensors="pt")
             inputs = {k: v.pin_memory() for k, v in inputs.items()}
+            # 디바이스 이동
             inputs = {
                 k: v.to(self.device, non_blocking=True) for k, v in inputs.items()
             }
+            # 모델 적용
             feats = self.model.get_image_features(**inputs)
+            # L2 정규화
             outs.append(F.normalize(feats, dim=-1).to("cpu", non_blocking=True))
+        # 디바이스 동기화
         torch.cuda.synchronize()
         return torch.cat(outs, dim=0).numpy().astype(np.float32)
 
-    # -------- MinIO (PIL만) --------
     def upload_image(
         self,
         image: Image.Image,
@@ -143,14 +119,14 @@ class MultiModalStore:
         buf = io.BytesIO()
         image.convert("RGB").save(buf, format="JPEG", quality=jpeg_quality)
         data = buf.getvalue()
-        self.minio.put_object(
-            self.minio_cfg.bucket,
+        self.image_storage.put_object(
+            self.image_storage_config.bucket,
             object_name,
             data=io.BytesIO(data),
             length=len(data),
             content_type="image/jpeg",
         )
-        return f"s3://{self.minio_cfg.bucket}/{object_name}"
+        return f"s3://{self.image_storage_config.bucket}/{object_name}"
 
     def presigned_url(self, s3_uri: str, expires_seconds: int = 3600) -> str:
         # s3://bucket/key -> presigned http url  # s3 스킴의 내부 경로를 사전서명된 HTTP URL로 변환
@@ -164,27 +140,27 @@ class MultiModalStore:
         bucket, key = path.split("/", 1)  # 버킷과 키로 분리
         # 사전서명 전 실제 존재 여부를 확인하여 잘못된 키로 링크가 생성되지 않도록 방지
         try:
-            self.minio.stat_object(bucket, key)  # 원본 키로 존재 확인
+            self.image_storage.stat_object(bucket, key)  # 원본 키로 존재 확인
             final_key = key  # 존재하면 그대로 사용
         except S3Error as e:
             if e.code == "NoSuchKey" and not key.endswith(".jpg"):  # 확장자 누락 가능성
                 alt_key = key + ".jpg"  # 대체 키 후보
-                self.minio.stat_object(
+                self.image_storage.stat_object(
                     bucket, alt_key
                 )  # 대체 키 존재 확인(없으면 예외 전파)
                 final_key = alt_key  # 대체 키로 확정
             else:
                 raise  # 다른 오류는 상위로 전파
-        return self.minio.presigned_get_object(  # 최종 키로 사전서명 URL 생성
+        return self.image_storage.presigned_get_object(  # 최종 키로 사전서명 URL 생성
             bucket, final_key, expires=timedelta(seconds=expires_seconds)
         )
 
-    # -------- Milvus --------
+    # Milvus
     def _get_or_create_collection(self) -> Collection:
-        name = self.milvus_cfg.collection_name
+        name = self.vector_database_config.collection_name
         if utility.has_collection(name):  # 컬렉션 존재 여부 확인
             coll = Collection(name)
-            # 필수 필드 검증 (단일 벡터 스키마)
+            # 필수 필드 검증 (단일 벡터 스키마) -> vector, text, image_path
             field_names = {f.name for f in coll.schema.fields}
             required = {"vector", "text", "image_path"}
             missing = required - field_names
@@ -219,13 +195,13 @@ class MultiModalStore:
     def _ensure_index(self):
         # 필드별 인덱스 존재 여부 확인 후 생성
         try:
-            existing = {idx.field_name for idx in (self.coll.indexes or [])}
+            existing = {idx.field_name for idx in (self.collection.indexes or [])}
         except Exception:
             existing = set()
 
         def ensure(field_name: str):
             if field_name not in existing:
-                self.coll.create_index(
+                self.collection.create_index(
                     field_name=field_name,
                     index_params={
                         "index_type": self.milvus_cfg.index_type,
@@ -242,13 +218,13 @@ class MultiModalStore:
         index_params: Dict[str, Any],
         metric_type: Optional[str] = None,
     ):
-        self.coll.release()
+        self.collection.release()
         # 벡터 인덱스 재생성
         try:
-            self.coll.drop_index(self.vector_field)
+            self.collection.drop_index(self.vector_field)
         except Exception:
             pass
-        self.coll.create_index(
+        self.collection.create_index(
             field_name=self.vector_field,
             index_params={
                 "index_type": index_type,
@@ -256,7 +232,7 @@ class MultiModalStore:
                 "params": index_params,
             },
         )
-        self.coll.load()
+        self.collection.load()
 
     # -------- High-level API (PIL만) --------
     def add_images_with_captions(
@@ -301,14 +277,14 @@ class MultiModalStore:
         texts_col = list(captions)
         paths_col = s3_uris
 
-        mr = self.coll.insert(
+        mr = self.collection.insert(
             data=[vectors_col, texts_col, paths_col],
             fields=[self.vector_field, "text", "image_path"],
         )
 
         if do_flush:
             # 너무 자주 호출하지 말고, 배치 or 전체 ingest 후 1회 호출 권장
-            self.coll.flush()
+            self.collection.flush()
 
         # 4) PK 반환 (auto_id인 경우 MutatationResult.primary_keys에서 수집)
         pks = []
@@ -330,7 +306,7 @@ class MultiModalStore:
         qvec = self.embed_text(query)[0].tolist()
         anns_field = self.vector_field
 
-        res = self.coll.search(
+        res = self.collection.search(
             data=[qvec],
             anns_field=anns_field,
             param={"ef": 128} if self.milvus_cfg.index_type.upper() == "HNSW" else {},

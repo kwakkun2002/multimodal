@@ -8,9 +8,9 @@ from torch.utils.data import (
 from tqdm import tqdm  # 진행 상황 표시를 위한 tqdm 진행바 임포트
 
 from MultiModalStore import (  # Milvus/MinIO 설정 및 통합 스토리지 래퍼 임포트
-    MilvusConfig,
     MinIOConfig,
     MultiModalStore,
+    VectorStoreConfig,
 )
 
 # %%  # 셀 구분 주석(데이터셋 로딩 블록)
@@ -69,7 +69,7 @@ test_loader = DataLoader(
 
 minio_cfg = MinIOConfig()  # MinIO 연결/버킷 정보 등을 담는 설정 객체 생성(미니오_설정)
 milvus_cfg = (
-    MilvusConfig()
+    VectorStoreConfig()
 )  # Milvus 연결/컬렉션 정보 등을 담는 설정 객체 생성(밀버스_설정)
 
 store = MultiModalStore(minio_cfg, milvus_cfg)  # 멀티모달 스토어 인스턴스 생성(스토어)

@@ -1,5 +1,7 @@
 from typing import Any, Dict, List
 
+from rich import print_json
+
 from ragas_eval.visual_metrics import compute_visual_recall
 
 
@@ -30,6 +32,7 @@ class VisualRecallEvaluator:
         Returns:
             float: 평균 Visual Recall@K 점수
         """
+
         # 각 샘플별 Visual Recall 점수를 저장할 리스트 초기화
         visual_scores: List[float] = []
 
@@ -72,6 +75,7 @@ class VisualRecallEvaluator:
             samples: 평가할 샘플들의 리스트
             per_sample_retrieved_image_ids: 각 샘플별로 검색된 이미지 ID 리스트
         """
+
         # Visual Recall@K 점수 계산
         avg_visual_recall = self.evaluate_visual_recall_at_k(
             samples, per_sample_retrieved_image_ids

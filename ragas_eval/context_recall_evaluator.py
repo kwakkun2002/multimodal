@@ -1,18 +1,17 @@
-import os
 import json
+import os
 
+from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from ragas import EvaluationDataset, evaluate
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import ContextRecall
-from dotenv import load_dotenv
+
 from mramg_proj.doc_wit_config import DocWitConfig
 from mramg_proj.doc_wit_vector_store import DocWitVectorStore
 
 
-def load_test_data(
-    jsonl_path: str
-):
+def load_test_data(jsonl_path: str, limit: int = None):
     """
     JSONL 테스트 샘플 로드 함수(테스트 데이터 읽기)
     """
@@ -28,6 +27,12 @@ def load_test_data(
                     "images_list": data.get("images_list", []),
                 }
             )
+
+    print("[load_test_data] 로드된 샘플 개수:", len(samples))
+    print("[load_test_data] 로드된 샘플 첫 번째 샘플:")
+    print(samples[0])
+    if limit:
+        samples = samples[:limit]
     return samples
 
 
@@ -48,9 +53,11 @@ class ContextRecallEvaluator:
         evaluator_llm = LangchainLLMWrapper(langchain_llm)
         return evaluator_llm
 
-    def evaluate_context_recall_at_k(self, jsonl_path: str, top_k: int = 10):
+    def evaluate_context_recall_at_k(
+        self, jsonl_path: str, top_k: int = 10, limit: int = None
+    ):
         """Evaluate context recall@k for a test dataset."""
-        test_dataset = load_test_data(jsonl_path)
+        test_dataset = load_test_data(jsonl_path, limit=limit)
 
         ragas_dataset = []
         all_image_ids = []
@@ -59,12 +66,22 @@ class ContextRecallEvaluator:
             search_results = self._search_contexts(sample["question"], top_k)
             contexts, image_ids = self._extract_contexts_and_images(search_results)
 
-            ragas_dataset.append({
-                "user_input": sample["question"],
-                "retrieved_contexts": contexts,
-                "reference": sample["ground_truth"],
-            })
+            ragas_dataset.append(
+                {
+                    "user_input": sample["question"],
+                    "retrieved_contexts": contexts,
+                    "reference": sample["ground_truth"],
+                }
+            )
             all_image_ids.append(image_ids)
+
+        print("[ContextRecallEvaluator] _extract_contexts_and_images 완료")
+        print("[ContextRecallEvaluator] ragas_dataset 개수:", len(ragas_dataset))
+        print("[ContextRecallEvaluator] ragas_dataset 첫 번째 샘플:")
+        print(ragas_dataset[0])
+        print("[ContextRecallEvaluator] all_image_ids 개수:", len(all_image_ids))
+        print("[ContextRecallEvaluator] all_image_ids 첫 번째 샘플:")
+        print(all_image_ids[0])
 
         avg_recall = self._compute_average_recall(ragas_dataset)
         details = {
@@ -73,13 +90,15 @@ class ContextRecallEvaluator:
             "num_samples": len(ragas_dataset),
         }
 
-        return avg_recall, details, ragas_dataset, all_image_ids
+        print("[ContextRecallEvaluator] _compute_average_recall 완료")
+        print("[ContextRecallEvaluator] details:")
+        print(details)
 
+        return avg_recall, details, ragas_dataset, all_image_ids
 
     def _search_contexts(self, query: str, top_k: int):
         """Search the vector store for relevant contexts."""
         return self._store.search(query, top_k=top_k)
-
 
     def _extract_contexts_and_images(self, search_results):
         """Extract texts and image IDs from search results."""
@@ -93,7 +112,6 @@ class ContextRecallEvaluator:
         image_ids = list(dict.fromkeys(image_ids))
         return contexts, image_ids
 
-
     def _compute_average_recall(self, ragas_dataset):
         """Run RAGAS evaluation and compute average recall."""
         evaluation_dataset = EvaluationDataset.from_list(ragas_dataset)
@@ -105,5 +123,3 @@ class ContextRecallEvaluator:
         if "context_recall" in df.columns:
             return float(df["context_recall"].mean())
         return float(results["context_recall"])
-
-

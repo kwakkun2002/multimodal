@@ -1,7 +1,6 @@
-from typing import Any, Dict, List
+from typing import List
 
-from rich import print_json
-
+from ragas_eval.context_recall_evaluator import SampleImageIds, TestSample
 from ragas_eval.visual_metrics import compute_visual_recall
 
 
@@ -19,15 +18,15 @@ class VisualRecallEvaluator:
 
     def evaluate_visual_recall_at_k(
         self,
-        samples: List[Dict[str, Any]],
-        per_sample_retrieved_image_ids: List[List[str]],
+        samples: List[TestSample],
+        per_sample_retrieved_image_ids: List[SampleImageIds],
     ) -> float:
         """
         주어진 샘플들에 대해 Visual Recall@K 점수를 계산합니다.
 
         Args:
-            samples: 평가할 샘플들의 리스트
-            per_sample_retrieved_image_ids: 각 샘플별로 검색된 이미지 ID 리스트
+            samples: 평가할 TestSample 객체들의 리스트
+            per_sample_retrieved_image_ids: 각 샘플별로 검색된 이미지 ID를 담은 SampleImageIds 객체 리스트
 
         Returns:
             float: 평균 Visual Recall@K 점수
@@ -39,11 +38,11 @@ class VisualRecallEvaluator:
         # 각 샘플을 순회하며 Visual Recall 점수 계산
         for idx, sample in enumerate(samples):
             # 현재 샘플의 정답 이미지 리스트를 문자열로 변환
-            gt_imgs = [str(x) for x in (sample.get("images_list") or [])]
+            gt_imgs = [str(x) for x in sample.images_list]
 
             # 현재 샘플에 대응하는 검색된 이미지 ID 리스트 가져오기
             ret_imgs = (
-                per_sample_retrieved_image_ids[idx]
+                per_sample_retrieved_image_ids[idx].image_ids
                 if idx < len(per_sample_retrieved_image_ids)
                 else []
             )
@@ -63,17 +62,18 @@ class VisualRecallEvaluator:
 
     def add_visual_recall_to_details(
         self,
-        details: Dict[str, Any],
-        samples: List[Dict[str, Any]],
-        per_sample_retrieved_image_ids: List[List[str]],
-    ) -> None:
+        samples: List[TestSample],
+        per_sample_retrieved_image_ids: List[SampleImageIds],
+    ) -> float:
         """
         평가 상세 결과에 Visual Recall@K 점수를 추가합니다.
 
         Args:
-            details: 평가 상세 결과를 담을 딕셔너리
-            samples: 평가할 샘플들의 리스트
-            per_sample_retrieved_image_ids: 각 샘플별로 검색된 이미지 ID 리스트
+            samples: 평가할 TestSample 객체들의 리스트
+            per_sample_retrieved_image_ids: 각 샘플별로 검색된 이미지 ID를 담은 SampleImageIds 객체 리스트
+
+        Returns:
+            float: 평균 Visual Recall@K 점수
         """
 
         # Visual Recall@K 점수 계산
@@ -82,4 +82,4 @@ class VisualRecallEvaluator:
         )
 
         # 상세 결과에 평균 Visual Recall@K 점수 추가
-        details["average_visual_recall@k"] = avg_visual_recall
+        return avg_visual_recall

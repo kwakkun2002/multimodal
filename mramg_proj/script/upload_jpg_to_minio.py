@@ -1,14 +1,16 @@
 from mramg_proj.jpg_uploader import JpgUploader
-from mramg_proj.wit_images_storage_config import WitImagesStorageConfig
+from mramg_proj.images_storage_config import ImagesStorageConfig
 
 
 def main():  # 메인 함수 - 스크립트 실행 시 호출
     """스크립트의 메인 실행 함수"""
     # MinIO 설정 생성 (기본값 사용)
-    minio_cfg = WitImagesStorageConfig()
+    # minio_cfg = ImagesStorageConfig(bucket_name="wit-images")
+    minio_cfg = ImagesStorageConfig(bucket_name="manual-images")
+
 
     # 업로드할 디렉토리 경로
-    directory_path = "/home/kun/Desktop/multimodal/data/MRAMG-Bench/IMAGE/images/WIT"
+    directory_path = "/home/kun/Desktop/multimodal/data/MRAMG-Bench/IMAGE/images/MANUAL"
 
     # JpgUploader 인스턴스 생성
     uploader = JpgUploader(minio_cfg)

@@ -6,13 +6,12 @@ from minio import Minio  # MinIO 클라이언트 사용을 위한 임포트
 from PIL import Image  # 이미지 처리를 위한 PIL 임포트
 from tqdm import tqdm  # 진행 상황 표시를 위한 tqdm 임포트
 
-from mramg_proj.wit_images_storage_config import WitImagesStorageConfig
-
+from mramg_proj.images_storage_config import ImagesStorageConfig
 
 class JpgUploader:
     """JPG 이미지 파일들을 MinIO 버킷에 업로드하는 클래스"""
 
-    def __init__(self, minio_cfg: WitImagesStorageConfig):
+    def __init__(self, minio_cfg: ImagesStorageConfig):
         """MinIO 연결 설정과 클라이언트를 초기화"""
 
         self.minio_cfg = minio_cfg  # MinIO 설정 저장
@@ -122,7 +121,4 @@ class JpgUploader:
         return {
             "total_files": total_files,  # 총 업로드된 파일 수
             "uploaded_files": uploaded_files,  # 업로드된 파일들의 상세 정보
-            "success_rate": f"{total_files / len(glob.glob(os.path.join('/home/kun/Desktop/multimodal/data/MRAMG-Bench/IMAGE/images/WIT', '*.jpg'))) * 100:.1f}%"
-            if total_files > 0
-            else "0%",
         }

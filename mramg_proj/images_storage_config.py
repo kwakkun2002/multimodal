@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 
-@dataclass
-class WitImagesStorageConfig:
+@dataclass(kw_only=True)
+class ImagesStorageConfig:
     """MinIO 연결과 버킷 정보를 담는 설정 클래스
     Args:
         endpoint: MinIO 서버 주소
@@ -12,12 +12,8 @@ class WitImagesStorageConfig:
         bucket_name: 사용할 버킷 이름
     """
 
-    endpoint: str = (
-        "localhost:9000"  # MinIO 서버 주소 (도커 컴포즈 내부면 "minio:9000")
-    )
+    endpoint: str = "localhost:9002"  # MinIO 서버 주소 (도커 컴포즈 내부면 "minio:9000")
     access_key: str = "minioadmin"  # MinIO 액세스 키
     secret_key: str = "minioadmin"  # MinIO 시크릿 키
     secure: bool = False  # HTTP 사용 시 False, HTTPS 사용 시 True
-    bucket_name: str = (
-        "wit-images"  # 사용할 버킷 이름 (MinIO 규칙에 맞는 소문자+하이픈)
-    )
+    bucket_name: str  # 사용할 버킷 이름 (MinIO 규칙에 맞는 소문자+하이픈)

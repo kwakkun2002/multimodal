@@ -61,7 +61,7 @@ class MilvusManager:
                 name="vector", dtype=DataType.FLOAT_VECTOR, dim=self.embedding_dim
             ),
         ]
-        schema = CollectionSchema(fields=fields, description="DocWit 문서 저장소")
+        schema = CollectionSchema(fields=fields, description="")
         collection = Collection(name=self.collection_name, schema=schema)
         print(f"[MilvusManager] 새 컬렉션 '{self.collection_name}' 생성")
         return collection

@@ -1,19 +1,19 @@
 from typing import Any, Dict, List
 
 from mramg_proj.bge_m3_embedder import BgeM3Embedder
-from mramg_proj.doc_wit_config import DocWitConfig
+from mramg_proj.doc_vector_store_config import DocVectorStoreConfig
 from mramg_proj.document_processor import DocumentProcessor
 from mramg_proj.milvus_manager import MilvusManager
 
 
-class DocWitVectorStore:
+class DocVectorStore:
     """
-    DocWit 벡터 저장소 클래스
+    Doc 벡터 저장소 클래스
     Args:
-        config: DocWitConfig
+        config: DocVectorStoreConfig
     """
 
-    def __init__(self, config: DocWitConfig):
+    def __init__(self, config: DocVectorStoreConfig):
         self.embedder = BgeM3Embedder()
         self.processor = DocumentProcessor(config.chunk_size, config.chunk_overlap)
         self.db = MilvusManager(

@@ -9,8 +9,8 @@ from ragas import EvaluationDataset, evaluate
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import ContextRecall
 
-from mramg_proj.doc_wit_config import DocWitConfig
-from mramg_proj.doc_wit_vector_store import DocWitVectorStore
+from mramg_proj.doc_wit_config import DocConfig
+from mramg_proj.doc_wit_vector_store import DocVectorStore
 
 
 # 테스트 샘플 데이터를 담는 소형 데이터클래스
@@ -110,7 +110,6 @@ class ContextRecallScoreResult:
     num_samples: int
 
 
-
 def load_test_data(jsonl_path: str, limit: int = None) -> List[TestSample]:
     """
     JSONL 테스트 샘플 로드 함수(테스트 데이터 읽기)
@@ -152,8 +151,8 @@ def load_test_data(jsonl_path: str, limit: int = None) -> List[TestSample]:
 
 class ContextRecallEvaluator:
     def __init__(self):
-        self._config = DocWitConfig()
-        self._store = DocWitVectorStore(self._config)
+        self._config = DocConfig()
+        self._store = DocVectorStore(self._config)
         self._store.create_index()
         load_dotenv()
 

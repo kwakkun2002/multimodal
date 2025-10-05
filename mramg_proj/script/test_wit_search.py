@@ -1,11 +1,11 @@
-from mramg_proj.doc_wit_config import DocWitConfig
-from mramg_proj.doc_wit_vector_store import DocWitVectorStore
+from mramg_proj.doc_wit_config import DocConfig
+from mramg_proj.doc_wit_vector_store import DocVectorStore
 
 
 def main():
     # DocWitVectorStore 인스턴스 생성
-    config = DocWitConfig()  # 기본 설정 사용
-    store = DocWitVectorStore(config)  # 저장소 인스턴스 생성
+    config = DocConfig()  # 기본 설정 사용
+    store = DocVectorStore(config)  # 저장소 인스턴스 생성
 
     # 4단계: 검색 테스트
     print("\n" + "=" * 60)  # 구분선

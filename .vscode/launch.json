@@ -5,11 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File",
-            "type": "debugpy",
+            "name": "Debug current file with uv",
+            "type": "python",
             "request": "launch",
             "program": "${file}",
-            "console": "integratedTerminal"
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": true
         }
     ]
 }

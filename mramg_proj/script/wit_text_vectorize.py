@@ -1,5 +1,5 @@
-from DocWitConfig import DocWitConfig
-from DocWitVectorStore import DocWitVectorStore
+from mramg_proj.doc_wit_config import DocWitConfig
+from mramg_proj.doc_wit_vector_store import DocWitVectorStore
 
 
 def main():  # 메인 함수 - 스크립트 실행 시 호출

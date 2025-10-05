@@ -5,17 +5,18 @@ import torch
 from FlagEmbedding import BGEM3FlagModel
 
 
-class BGEM3Embedder:
+class BgeM3Embedder:
     """
     BGE-M3 임베더 클래스
     Args:
         device: 디바이스
     """
+
     def __init__(self, device: str = None):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"[BGEM3Embedder] {self.device} 에서 모델 로드 중...")
+        print(f"[BgeM3Embedder] {self.device} 에서 모델 로드 중...")
         self.model = BGEM3FlagModel("BAAI/bge-m3", use_fp16=True, device=self.device)
-        print("[BGEM3Embedder] 로드 완료!")
+        print("[BgeM3Embedder] 로드 완료!")
 
     @torch.inference_mode()
     def embed(self, texts: List[str]) -> np.ndarray:

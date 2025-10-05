@@ -12,6 +12,7 @@ class DocumentProcessor:
         chunk_size: 청크 크기
         chunk_overlap: 청크 간 중복 크기
     """
+
     def __init__(self, chunk_size: int = 256, chunk_overlap: int = 20):
         self.splitter = SentenceSplitter(
             chunk_size=chunk_size, chunk_overlap=chunk_overlap

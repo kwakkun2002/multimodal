@@ -26,4 +26,7 @@ dependencies = [
     "pandas>=2.2.3",
     "llama-index-core>=0.14.2",
     "torch>=2.8.0",
+    "python-dotenv>=1.1.1",
+    "rich>=14.1.0",
+    "typer>=0.19.2",
 ]

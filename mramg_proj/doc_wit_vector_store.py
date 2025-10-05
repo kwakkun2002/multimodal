@@ -1,9 +1,9 @@
 from typing import Any, Dict, List
 
-from mramg_proj.BGEM3Embedder import BGEM3Embedder
-from mramg_proj.DocumentProcessor import DocumentProcessor
-from mramg_proj.DocWitConfig import DocWitConfig
-from mramg_proj.MilvusManager import MilvusManager
+from mramg_proj.bge_m3_embedder import BgeM3Embedder
+from mramg_proj.doc_wit_config import DocWitConfig
+from mramg_proj.document_processor import DocumentProcessor
+from mramg_proj.milvus_manager import MilvusManager
 
 
 class DocWitVectorStore:
@@ -12,8 +12,9 @@ class DocWitVectorStore:
     Args:
         config: DocWitConfig
     """
+
     def __init__(self, config: DocWitConfig):
-        self.embedder = BGEM3Embedder()
+        self.embedder = BgeM3Embedder()
         self.processor = DocumentProcessor(config.chunk_size, config.chunk_overlap)
         self.db = MilvusManager(
             host=config.milvus_host,

@@ -6,10 +6,10 @@ from minio import Minio  # MinIO 클라이언트 사용을 위한 임포트
 from PIL import Image  # 이미지 처리를 위한 PIL 임포트
 from tqdm import tqdm  # 진행 상황 표시를 위한 tqdm 임포트
 
-from mramg_proj.WitImagesStorageConfig import WitImagesStorageConfig
+from mramg_proj.wit_images_storage_config import WitImagesStorageConfig
 
 
-class JPGUploader:
+class JpgUploader:
     """JPG 이미지 파일들을 MinIO 버킷에 업로드하는 클래스"""
 
     def __init__(self, minio_cfg: WitImagesStorageConfig):

@@ -2309,11 +2309,14 @@ dependencies = [
     { name = "pandas" },
     { name = "pillow" },
     { name = "pymilvus" },
+    { name = "python-dotenv" },
     { name = "ragas" },
+    { name = "rich" },
     { name = "torch" },
     { name = "torchvision" },
     { name = "tqdm" },
     { name = "transformers", extra = ["torch"] },
+    { name = "typer" },
 ]
 
 [package.metadata]
@@ -2334,11 +2337,14 @@ requires-dist = [
     { name = "pandas", specifier = ">=2.2.3" },
     { name = "pillow", specifier = ">=11.3.0" },
     { name = "pymilvus", specifier = ">=2.6.0" },
+    { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "ragas", specifier = ">=0.3.5" },
+    { name = "rich", specifier = ">=14.1.0" },
     { name = "torch", specifier = ">=2.8.0" },
     { name = "torchvision", specifier = ">=0.23.0" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "transformers", extras = ["torch"], specifier = ">=4.55.3" },
+    { name = "typer", specifier = ">=0.19.2" },
 ]
 
 [[package]]

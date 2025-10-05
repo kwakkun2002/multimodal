@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class WitImagesStorageConfig: 
+class WitImagesStorageConfig:
     """MinIO 연결과 버킷 정보를 담는 설정 클래스
     Args:
         endpoint: MinIO 서버 주소

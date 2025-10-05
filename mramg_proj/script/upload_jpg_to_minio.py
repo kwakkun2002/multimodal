@@ -1,7 +1,5 @@
-from JPGUploader import JPGUploader
-from WitImagesStorageConfig import WitImagesStorageConfig
-
-
+from mramg_proj.jpg_uploader import JpgUploader
+from mramg_proj.wit_images_storage_config import WitImagesStorageConfig
 
 
 def main():  # 메인 함수 - 스크립트 실행 시 호출
@@ -12,8 +10,8 @@ def main():  # 메인 함수 - 스크립트 실행 시 호출
     # 업로드할 디렉토리 경로
     directory_path = "/home/kun/Desktop/multimodal/data/MRAMG-Bench/IMAGE/images/WIT"
 
-    # JPGUploader 인스턴스 생성
-    uploader = JPGUploader(minio_cfg)
+    # JpgUploader 인스턴스 생성
+    uploader = JpgUploader(minio_cfg)
 
     # 디렉토리에서 모든 JPG 파일 업로드
     uploaded_files = uploader.upload_directory(

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class DocWitConfig:  # DocWit 벡터 저장소 설정을 담는 데이터 클래스
+class DocWitConfig:  
     """DocWit 벡터 저장소의 연결 및 컬렉션 설정을 담는 클래스"""
 
     milvus_host: str = "localhost"  # Milvus 서버 호스트 주소

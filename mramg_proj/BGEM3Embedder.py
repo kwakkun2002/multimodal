@@ -6,6 +6,11 @@ from FlagEmbedding import BGEM3FlagModel
 
 
 class BGEM3Embedder:
+    """
+    BGE-M3 임베더 클래스
+    Args:
+        device: 디바이스
+    """
     def __init__(self, device: str = None):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         print(f"[BGEM3Embedder] {self.device} 에서 모델 로드 중...")

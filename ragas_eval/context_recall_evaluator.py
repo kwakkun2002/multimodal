@@ -41,7 +41,7 @@ class ContextRecallEvaluator:
         평가에 사용할 LLM 래퍼 생성 함수
         """
         # 사용할 모델명 결정(환경변수 기본값)
-        model = model_name or os.environ.get("OPENAI_EVAL_MODEL", "gpt-4o-mini")
+        model = model_name or os.environ.get("OPENAI_EVAL_MODEL", "gpt-4o")
         # OpenAI API 키 로드
         openai_api_key = os.environ.get("OPENAI_API_KEY")
         # 키가 없으면 실행 불가이므로 오류 발생

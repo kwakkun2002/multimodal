@@ -7,6 +7,11 @@ from mramg_proj.MilvusManager import MilvusManager
 
 
 class DocWitVectorStore:
+    """
+    DocWit 벡터 저장소 클래스
+    Args:
+        config: DocWitConfig
+    """
     def __init__(self, config: DocWitConfig):
         self.embedder = BGEM3Embedder()
         self.processor = DocumentProcessor(config.chunk_size, config.chunk_overlap)

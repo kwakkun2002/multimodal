@@ -13,6 +13,17 @@ from pymilvus import (
 
 
 class MilvusManager:
+    """
+    Milvus 매니저 클래스
+    Args:
+        host: Milvus 서버 호스트
+        port: Milvus 서버 포트
+        collection_name: 컬렉션 이름
+        embedding_dim: 임베딩 차원
+        text_max_len: 텍스트 최대 길이
+        image_ids_max_len: 이미지 ID 최대 길이
+    """
+
     def __init__(
         self,
         host: str,

@@ -5,6 +5,13 @@ from llama_index.core.node_parser import SentenceSplitter
 
 
 class DocumentProcessor:
+    """
+    문서 프로세서 클래스
+    문서를 청크로 분할하고, 이미지 ID를 추출하는 클래스
+    Args:
+        chunk_size: 청크 크기
+        chunk_overlap: 청크 간 중복 크기
+    """
     def __init__(self, chunk_size: int = 256, chunk_overlap: int = 20):
         self.splitter = SentenceSplitter(
             chunk_size=chunk_size, chunk_overlap=chunk_overlap

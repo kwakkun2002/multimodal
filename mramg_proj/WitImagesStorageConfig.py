@@ -2,8 +2,15 @@ from dataclasses import dataclass
 
 
 @dataclass
-class WitImagesStorageConfig:  # MinIO 연결 설정을 담는 데이터 클래스
-    """MinIO 연결과 버킷 정보를 담는 설정 클래스"""
+class WitImagesStorageConfig: 
+    """MinIO 연결과 버킷 정보를 담는 설정 클래스
+    Args:
+        endpoint: MinIO 서버 주소
+        access_key: MinIO 액세스 키
+        secret_key: MinIO 시크릿 키
+        secure: HTTP 사용 시 False, HTTPS 사용 시 True
+        bucket_name: 사용할 버킷 이름
+    """
 
     endpoint: str = (
         "localhost:9000"  # MinIO 서버 주소 (도커 컴포즈 내부면 "minio:9000")

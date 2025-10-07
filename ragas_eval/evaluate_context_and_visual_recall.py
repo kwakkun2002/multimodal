@@ -1,6 +1,9 @@
 import os
 
-from ragas_eval.context_recall_evaluator import ContextRecallEvaluator
+from ragas_eval.context_recall_evaluator import (
+    ContextRecallEvaluator,
+    RetrievedContextsResult,
+)
 from ragas_eval.visual_recall_evaluator import VisualRecallEvaluator
 
 # 평가 데이터 경로를 환경 변수로부터 읽기(기본값 제공)
@@ -15,8 +18,8 @@ jsonl_path = os.environ.get(
 context_evaluator = ContextRecallEvaluator()
 
 # 1단계: 테스트 샘플들에 대해 컨텍스트 검색 및 데이터 준비
-retrieval_result = context_evaluator.retrieve_contexts_for_samples(
-    jsonl_path=jsonl_path, limit=5
+retrieval_result: RetrievedContextsResult = (
+    context_evaluator.retrieve_contexts_for_samples(jsonl_path=jsonl_path, limit=5)
 )
 
 # 2단계: 준비된 RAGAS 데이터셋으로 Context Recall 점수 계산

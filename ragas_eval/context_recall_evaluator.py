@@ -8,107 +8,13 @@ from langchain_openai import ChatOpenAI
 from ragas import EvaluationDataset, evaluate
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import ContextRecall
-
-from mramg_proj.doc_wit_config import DocConfig
-from mramg_proj.doc_wit_vector_store import DocVectorStore
-
-
-# 테스트 샘플 데이터를 담는 소형 데이터클래스
-@dataclass
-class TestSample:
-    """
-    JSONL에서 로드한 단일 테스트 샘플을 담는 클래스
-
-    Attributes:
-        id: 샘플 고유 식별자
-        question: 사용자 질문
-        ground_truth: 정답 (참조 답변)
-        images_list: 정답에 해당하는 이미지 ID 리스트
-    """
-
-    # 샘플의 고유 ID
-    id: str
-    # 사용자가 입력한 질문
-    question: str
-    # 모델이 생성해야 할 정답
-    ground_truth: str
-    # 정답과 관련된 이미지 ID들
-    images_list: List[str]
-
-
-# RAGAS 평가용 데이터를 담는 소형 데이터클래스
-@dataclass
-class RagasEvaluationData:
-    """
-    RAGAS 평가를 위한 단일 데이터 항목을 담는 클래스
-
-    Attributes:
-        user_input: 사용자 질문
-        retrieved_contexts: 검색된 텍스트 컨텍스트 리스트
-        reference: 정답 (참조 답변)
-    """
-
-    # 평가할 사용자 질문
-    user_input: str
-    # 벡터 스토어에서 검색된 컨텍스트들
-    retrieved_contexts: List[str]
-    # 정답 참조 텍스트
-    reference: str
-
-
-# 샘플별 검색된 이미지 ID를 담는 소형 데이터클래스
-@dataclass
-class SampleImageIds:
-    """
-    단일 샘플에 대해 검색된 이미지 ID들을 담는 클래스
-
-    Attributes:
-        image_ids: 검색된 이미지 ID 리스트
-    """
-
-    # 벡터 검색 결과로 얻은 이미지 ID들
-    image_ids: List[str]
-
-
-# 컨텍스트 검색 결과를 담는 데이터클래스
-@dataclass
-class RetrievedContextsResult:
-    """
-    테스트 샘플에 대한 컨텍스트 검색 결과를 담는 클래스
-
-    Attributes:
-        original_test_samples: JSONL에서 로드한 원본 테스트 샘플 리스트
-        ragas_evaluation_data: RAGAS 평가를 위해 변환된 데이터셋 리스트
-        retrieved_image_ids_per_sample: 각 샘플별로 검색된 이미지 ID 객체 리스트
-    """
-
-    # 원본 테스트 샘플 데이터 (TestSample 객체들)
-    original_test_samples: List[TestSample]
-    # RAGAS 평가용으로 구성된 데이터 (RagasEvaluationData 객체들)
-    ragas_evaluation_data: List[RagasEvaluationData]
-    # 각 샘플마다 검색된 이미지 ID들 (SampleImageIds 객체들)
-    retrieved_image_ids_per_sample: List[SampleImageIds]
-
-
-# Context Recall 평가 점수 결과를 담는 데이터클래스
-@dataclass
-class ContextRecallScoreResult:
-    """
-    Context Recall 평가 점수 결과를 담는 클래스
-
-    Attributes:
-        average_context_recall_at_k: 평균 Context Recall 점수 (0.0 ~ 1.0)
-        k: 검색에 사용된 상위 k개의 결과 수
-        num_samples: 평가에 사용된 샘플 개수
-    """
-
-    # 모든 샘플에 대한 평균 Context Recall 점수
-    average_context_recall_at_k: float
-    # 검색 시 사용한 top-k 값
-    k: int
-    # 평가에 포함된 샘플의 총 개수
-    num_samples: int
-
+from ragas_eval.test_sample import TestSample
+from ragas_eval.ragas_evaluation_data import RagasEvaluationData
+from ragas_eval.sample_image_ids import SampleImageIds
+from ragas_eval.retrieved_contexts_result import RetrievedContextsResult
+from mramg_proj.doc_vector_store_config import DocVectorStoreConfig
+from mramg_proj.doc_vector_store import DocVectorStore
+from ragas_eval.context_recall_score_result import ContextRecallScoreResult
 
 def load_test_data(jsonl_path: str, limit: int = None) -> List[TestSample]:
     """
@@ -151,7 +57,7 @@ def load_test_data(jsonl_path: str, limit: int = None) -> List[TestSample]:
 
 class ContextRecallEvaluator:
     def __init__(self):
-        self._config = DocConfig()
+        self._config = DocVectorStoreConfig()
         self._store = DocVectorStore(self._config)
         self._store.create_index()
         load_dotenv()
@@ -215,7 +121,7 @@ class ContextRecallEvaluator:
 
     def compute_context_recall_score(
         self, ragas_dataset: List[RagasEvaluationData], top_k: int = 10
-    ) -> ContextRecallScoreResult:
+    ):
         """
         RAGAS 데이터셋을 사용하여 Context Recall 점수를 계산합니다.
 

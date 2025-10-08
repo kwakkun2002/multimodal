@@ -4,7 +4,7 @@ from typing import List
 
 # 샘플별 검색된 이미지 ID를 담는 소형 데이터클래스
 @dataclass
-class SampleImageIds:
+class RetrievedImageIds:
     """
     단일 샘플에 대해 검색된 이미지 ID들을 담는 클래스
 

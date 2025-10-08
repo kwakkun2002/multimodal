@@ -1,7 +1,8 @@
 from typing import List
 
-from ragas_eval.context_recall_evaluator import SampleImageIds, TestSample
-from ragas_eval.visual_metrics import compute_visual_recall
+from ragas_eval.models.sample_image_ids import RetrievedImageIds
+from ragas_eval.models.test_sample import Mqa
+from ragas_eval.utiles.visual_metrics import compute_visual_recall
 
 
 class VisualRecallEvaluator:
@@ -18,8 +19,8 @@ class VisualRecallEvaluator:
 
     def evaluate_visual_recall_at_k(
         self,
-        samples: List[TestSample],
-        per_sample_retrieved_image_ids: List[SampleImageIds],
+        samples: List[Mqa],
+        per_sample_retrieved_image_ids: List[RetrievedImageIds],
     ) -> float:
         """
         주어진 샘플들에 대해 Visual Recall@K 점수를 계산합니다.
@@ -62,8 +63,8 @@ class VisualRecallEvaluator:
 
     def add_visual_recall_to_details(
         self,
-        samples: List[TestSample],
-        per_sample_retrieved_image_ids: List[SampleImageIds],
+        samples: List[Mqa],
+        per_sample_retrieved_image_ids: List[RetrievedImageIds],
     ) -> float:
         """
         평가 상세 결과에 Visual Recall@K 점수를 추가합니다.

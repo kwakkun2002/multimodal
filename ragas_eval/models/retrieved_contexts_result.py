@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import List
 
-from ragas_eval.ragas_evaluation_data import RagasEvaluationData
-from ragas_eval.sample_image_ids import SampleImageIds
-from ragas_eval.test_sample import TestSample
+from ragas_eval.models.ragas_evaluation_data import RagasEvaluationData
+from ragas_eval.models.sample_image_ids import RetrievedImageIds
+from ragas_eval.models.test_sample import Mqa
 
 
 # 컨텍스트 검색 결과를 담는 데이터클래스
@@ -19,8 +19,8 @@ class RetrievedContextsResult:
     """
 
     # 원본 테스트 샘플 데이터 (TestSample 객체들)
-    original_test_samples: List[TestSample]
+    original_test_samples: List[Mqa]
     # RAGAS 평가용으로 구성된 데이터 (RagasEvaluationData 객체들)
     ragas_evaluation_data: List[RagasEvaluationData]
     # 각 샘플마다 검색된 이미지 ID들 (SampleImageIds 객체들)
-    retrieved_image_ids_per_sample: List[SampleImageIds]
+    retrieved_image_ids_per_sample: List[RetrievedImageIds]

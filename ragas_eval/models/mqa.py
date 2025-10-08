@@ -4,7 +4,7 @@ from typing import List
 
 # 테스트 샘플 데이터를 담는 소형 데이터클래스
 @dataclass
-class TestSample:
+class Mqa:
     """
     JSONL에서 로드한 단일 테스트 샘플을 담는 클래스
     Attributes:

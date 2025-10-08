@@ -1,10 +1,9 @@
-from typing import Any, Dict, List
+from typing import List
 
 from mramg_proj.bge_m3_embedder import BgeM3Embedder
 from mramg_proj.doc_vector_store_config import DocVectorStoreConfig
 from mramg_proj.document_processor import DocumentProcessor
 from mramg_proj.milvus_manager import MilvusManager
-
 
 class DocVectorStore:
     """
@@ -33,6 +32,6 @@ class DocVectorStore:
     def create_index(self) -> None:
         self.db.create_index()
 
-    def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        query_vec = self.embedder.embed([query])[0]
-        return self.db.search(query_vec, top_k=top_k)
+    def search(self, query: str, top_k: int = 5):
+        query_vec = self.embedder.embed([query])[0] # 쿼리 벡터 생성
+        return self.db.search(query_vec=query_vec, top_k=top_k)

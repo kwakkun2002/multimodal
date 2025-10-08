@@ -11,6 +11,8 @@ from pymilvus import (
     utility,
 )
 
+from mramg_proj.models.milvus_search_result import MilvusSearchResult
+
 
 class MilvusManager:
     """
@@ -93,7 +95,18 @@ class MilvusManager:
             print("[MilvusManager] 인덱스 생성 완료")
         self.collection.load()
 
-    def search(self, query_vec: np.ndarray, top_k: int = 5):
+    def search(self, query_vec: np.ndarray, top_k: int = 5) -> List[MilvusSearchResult]:
+        """
+        벡터 쿼리를 통해 유사한 문서를 검색
+
+        Args:
+            query_vec: 검색할 쿼리 벡터
+            top_k: 반환할 최대 결과 개수
+
+        Returns:
+            검색된 결과 리스트 (MilvusSearchResult 객체들)
+        """
+        # Milvus 컬렉션에서 벡터 검색 수행
         results = self.collection.search(
             data=[query_vec.tolist()],
             anns_field="vector",
@@ -101,19 +114,24 @@ class MilvusManager:
             limit=top_k,
             output_fields=["text", "image_ids", "original_id"],
         )
+
+        # 검색 결과를 MilvusSearchResult 객체로 변환
         formatted = []
         for hit in results[0]:
+            # JSON 문자열로 저장된 이미지 ID 리스트를 파싱
             try:
                 image_ids = json.loads(hit.entity.get("image_ids", "[]"))
             except Exception:
                 image_ids = []
+
+            # MilvusSearchResult 객체 생성 후 리스트에 추가
             formatted.append(
-                {
-                    "id": int(hit.id),
-                    "original_id": hit.entity.get("original_id", 0),
-                    "text": hit.entity.get("text", ""),
-                    "image_ids": image_ids,
-                    "score": float(hit.score),
-                }
+                MilvusSearchResult(
+                    id=int(hit.id),
+                    original_id=hit.entity.get("original_id", 0),
+                    text=hit.entity.get("text", ""),
+                    image_ids=image_ids,
+                    score=float(hit.score),
+                )
             )
         return formatted

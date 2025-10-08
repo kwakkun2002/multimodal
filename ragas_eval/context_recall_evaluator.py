@@ -1,6 +1,5 @@
-import json
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from typing import List
 
 from dotenv import load_dotenv
@@ -8,68 +7,37 @@ from langchain_openai import ChatOpenAI
 from ragas import EvaluationDataset, evaluate
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import ContextRecall
-from ragas_eval.test_sample import TestSample
-from ragas_eval.ragas_evaluation_data import RagasEvaluationData
-from ragas_eval.sample_image_ids import SampleImageIds
-from ragas_eval.retrieved_contexts_result import RetrievedContextsResult
-from mramg_proj.doc_vector_store_config import DocVectorStoreConfig
+
 from mramg_proj.doc_vector_store import DocVectorStore
-from ragas_eval.context_recall_score_result import ContextRecallScoreResult
-
-def load_test_data(jsonl_path: str, limit: int = None) -> List[TestSample]:
-    """
-    JSONL 테스트 샘플 로드 함수(테스트 데이터 읽기)
-
-    Args:
-        jsonl_path: JSONL 파일 경로
-        limit: 로드할 최대 샘플 개수
-
-    Returns:
-        List[TestSample]: 로드된 테스트 샘플 리스트
-    """
-    # 테스트 샘플들을 저장할 리스트
-    samples = []
-
-    # JSONL 파일을 한 줄씩 읽기
-    with open(jsonl_path, "r", encoding="utf-8") as f:
-        for line in f:
-            # JSON 파싱
-            data = json.loads(line)
-            # TestSample 객체로 변환하여 추가
-            samples.append(
-                TestSample(
-                    id=data.get("id", ""),
-                    question=data.get("question", ""),
-                    ground_truth=data.get("ground_truth", ""),
-                    images_list=data.get("images_list", []),
-                )
-            )
-
-    print("[load_test_data] 로드된 샘플 개수:", len(samples))
-    print("[load_test_data] 로드된 샘플 첫 번째 샘플:")
-    print(samples[0])
-
-    # 샘플 개수 제한이 있으면 적용
-    if limit:
-        samples = samples[:limit]
-    return samples
+from mramg_proj.doc_vector_store_config import DocVectorStoreConfig
+from mramg_proj.models.milvus_search_result import MilvusSearchResult
+from ragas_eval.models.context_recall_score_result import ContextRecallScoreResult
+from ragas_eval.models.mqa import Mqa
+from ragas_eval.models.ragas_evaluation_data import RagasEvaluationData
+from ragas_eval.models.retrieved_contexts_result import RetrievedContextsResult
+from ragas_eval.models.retrieved_image_ids import RetrievedImageIds
+from ragas_eval.utiles.load_test_data import load_mqa
 
 
 class ContextRecallEvaluator:
     def __init__(self):
-        self._config = DocVectorStoreConfig()
-        self._store = DocVectorStore(self._config)
+        self._config: DocVectorStoreConfig = DocVectorStoreConfig(
+            collection_name="doc_wit_documents"
+        )
+        self._store: DocVectorStore = DocVectorStore(self._config)
         self._store.create_index()
         load_dotenv()
 
-    def _build_evaluator_llm(self, model_name: str = "gpt-4o-mini"):
-        openai_api_key = os.getenv("OPENAI_API_KEY")
+    def _build_evaluator_llm(
+        self, model_name: str = "gpt-4o-mini"
+    ) -> LangchainLLMWrapper:
+        openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
         if not openai_api_key:
             raise RuntimeError(
                 "OPENAI_API_KEY 환경 변수가 설정되어야 합니다 (RAGAS LLM 평가용)."
             )
-        langchain_llm = ChatOpenAI(model=model_name)
-        evaluator_llm = LangchainLLMWrapper(langchain_llm)
+        langchain_llm: ChatOpenAI = ChatOpenAI(model=model_name)
+        evaluator_llm: LangchainLLMWrapper = LangchainLLMWrapper(langchain_llm)
         return evaluator_llm
 
     def retrieve_contexts_for_samples(
@@ -87,34 +55,38 @@ class ContextRecallEvaluator:
             RetrievedContextsResult: 원본 샘플, RAGAS 평가 데이터, 검색된 이미지 ID를 담은 결과 객체
         """
         # JSONL 파일에서 테스트 데이터 로드 (TestSample 객체 리스트)
-        test_samples = load_test_data(jsonl_path, limit=limit)
+        mqa_list: List[Mqa] = load_mqa(jsonl_path, limit=limit)
 
         # RAGAS 평가용 데이터셋을 저장할 리스트
         ragas_dataset: List[RagasEvaluationData] = []
         # 각 샘플별로 검색된 이미지 ID를 저장할 리스트
-        all_image_ids: List[SampleImageIds] = []
+        all_image_ids: List[RetrievedImageIds] = []
 
         # 각 샘플에 대해 벡터 검색 수행
-        for sample in test_samples:
+        for mqa in mqa_list:
             # 질문으로 벡터 스토어 검색
-            search_results = self._search_contexts(sample.question, top_k)
-            # 검색 결과에서 텍스트 컨텍스트와 이미지 ID 추출
-            contexts, image_ids = self._extract_contexts_and_images(search_results)
+            search_results: List[MilvusSearchResult] = self._search_contexts(
+                mqa.question, top_k
+            )
+            # 검색 결과에서 텍스트 컨텍스트 추출
+            contexts: list[str] = self._extract_contexts(search_results)
+            # 검색 결과에서 이미지 ID 추출 및 중복 제거
+            image_ids: list[str] = self._extract_image_ids(search_results)
 
             # RAGAS 평가 형식으로 데이터 객체 생성
             ragas_dataset.append(
                 RagasEvaluationData(
-                    user_input=sample.question,
+                    user_input=mqa.question,
                     retrieved_contexts=contexts,
-                    reference=sample.ground_truth,
+                    reference=mqa.ground_truth,
                 )
             )
             # 현재 샘플의 검색된 이미지 ID를 객체로 저장
-            all_image_ids.append(SampleImageIds(image_ids=image_ids))
+            all_image_ids.append(RetrievedImageIds(image_ids=image_ids))
 
         # 검색 결과를 데이터클래스로 반환
         return RetrievedContextsResult(
-            original_test_samples=test_samples,
+            original_test_samples=mqa_list,
             ragas_evaluation_data=ragas_dataset,
             retrieved_image_ids_per_sample=all_image_ids,
         )
@@ -142,21 +114,44 @@ class ContextRecallEvaluator:
             num_samples=len(ragas_dataset),
         )
 
-    def _search_contexts(self, query: str, top_k: int):
+    def _search_contexts(self, query: str, top_k: int) -> List[MilvusSearchResult]:
         """Search the vector store for relevant contexts."""
         return self._store.search(query, top_k=top_k)
 
-    def _extract_contexts_and_images(self, search_results):
-        """Extract texts and image IDs from search results."""
-        contexts = [r.get("text", "") for r in search_results]
+    def _extract_contexts(self, search_results: List[MilvusSearchResult]) -> list[str]:
+        """
+        검색 결과에서 텍스트 컨텍스트들을 추출합니다.
 
-        image_ids = []
+        Args:
+            search_results: Milvus 검색 결과 리스트
+
+        Returns:
+            list[str]: 추출된 텍스트 컨텍스트 리스트
+        """
+        # 각 검색 결과에서 텍스트만 추출하여 리스트로 반환
+        return [result.text for result in search_results]
+
+    def _extract_image_ids(self, search_results: List[MilvusSearchResult]) -> list[str]:
+        """
+        검색 결과에서 이미지 ID들을 추출하고 중복을 제거합니다.
+
+        Args:
+            search_results: Milvus 검색 결과 리스트
+
+        Returns:
+            list[str]: 중복이 제거된 이미지 ID 리스트 (순서 유지)
+        """
+        # 모든 검색 결과에서 이미지 ID를 수집할 리스트
+        image_ids: list[str] = []
+
+        # 각 검색 결과의 이미지 ID를 리스트에 추가
         for result in search_results:
-            image_ids.extend(str(iid) for iid in (result.get("image_ids") or []))
+            image_ids.extend(iid for iid in result.image_ids)
 
-        # Deduplicate while preserving order
-        image_ids = list(dict.fromkeys(image_ids))
-        return contexts, image_ids
+        # 순서를 유지하면서 중복 제거 (dict.fromkeys는 삽입 순서 유지)
+        deduplicated_image_ids: list[str] = list(dict.fromkeys(image_ids))
+
+        return deduplicated_image_ids
 
     def _compute_average_recall(
         self, ragas_dataset: List[RagasEvaluationData]
